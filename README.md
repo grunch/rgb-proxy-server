@@ -1,5 +1,7 @@
 # RGB proxy server
 
+![workflow](workflow.jpg)
+
 ## Running the app
 
 ```
