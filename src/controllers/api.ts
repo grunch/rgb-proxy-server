@@ -9,6 +9,7 @@ interface Consignment {
   _id?: string;
   filename: string;
   blindedutxo: string;
+  ack?: boolean;
 }
 
 let ds = Datastore.create();
@@ -43,6 +44,46 @@ export const loadApiEndpoints = (app: Application): void => {
       };
       await ds.insert(consignment);
       return res.status(200).send({ success: true });
+    } catch (error) {
+      res.status(500).send({ success: false });
+    }
+  });
+
+  app.post("/ack", async (req: Request, res: Response) => {
+    try {
+      if (!req.body.blindedutxo) {
+        return res.status(500).send({ success: false });
+      }
+      let c: Consignment | null = await ds.findOne({ blindedutxo: req.body.blindedutxo });
+      if (!c) {
+        return res.status(500).send({ success: false });
+      }
+      await ds.update({ blindedutxo: req.body.blindedutxo }, { $set: { ack: true } }, { multi: false });
+      c = await ds.findOne({ blindedutxo: req.body.blindedutxo });
+
+      return res.status(200).send({ success: true });
+    } catch (error) {
+      res.status(500).send({ success: false });
+    }
+  });
+
+  app.get("/ack", async (req: Request, res: Response) => {
+    try {
+      if (!!req.query.blindedutxo) {
+        const c: Consignment | null = await ds.findOne({ blindedutxo: req.query.blindedutxo });
+
+        if (!c) {
+          return res.status(500).send({ success: false });
+        }
+        const ack = !!c.ack;
+
+        return res.status(200).send({
+          success: true,
+          ack,
+        });
+      }
+
+      res.status(500).send({ success: false });
     } catch (error) {
       res.status(500).send({ success: false });
     }
