@@ -10,6 +10,7 @@ interface Consignment {
   filename: string;
   blindedutxo: string;
   ack?: boolean;
+  nack?: boolean;
 }
 
 let ds = Datastore.create();
@@ -58,7 +59,25 @@ export const loadApiEndpoints = (app: Application): void => {
       if (!c) {
         return res.status(500).send({ success: false });
       }
-      await ds.update({ blindedutxo: req.body.blindedutxo }, { $set: { ack: true } }, { multi: false });
+      await ds.update({ blindedutxo: req.body.blindedutxo }, { $set: { ack: true, nack: false } }, { multi: false });
+      c = await ds.findOne({ blindedutxo: req.body.blindedutxo });
+
+      return res.status(200).send({ success: true });
+    } catch (error) {
+      res.status(500).send({ success: false });
+    }
+  });
+
+  app.post("/nack", async (req: Request, res: Response) => {
+    try {
+      if (!req.body.blindedutxo) {
+        return res.status(500).send({ success: false });
+      }
+      let c: Consignment | null = await ds.findOne({ blindedutxo: req.body.blindedutxo });
+      if (!c) {
+        return res.status(500).send({ success: false });
+      }
+      await ds.update({ blindedutxo: req.body.blindedutxo }, { $set: { nack: true, ack: false } }, { multi: false });
       c = await ds.findOne({ blindedutxo: req.body.blindedutxo });
 
       return res.status(200).send({ success: true });
@@ -76,10 +95,12 @@ export const loadApiEndpoints = (app: Application): void => {
           return res.status(500).send({ success: false });
         }
         const ack = !!c.ack;
+        const nack = !!c.nack;
 
         return res.status(200).send({
           success: true,
           ack,
+          nack,
         });
       }
 

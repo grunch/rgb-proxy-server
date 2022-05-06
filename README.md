@@ -38,7 +38,13 @@ $ curl -d "blindedutxo=blindtest" -X POST localhost:3000/ack
 
 {"success":true}
 ```
-The payer do a GET /ack with the same blindedutxo, if gets a `ack: true`, can broadcast the transaction.
+If the payee is not ok with the consigment hit the `nack` POST call with the same blindedutxo
+```
+$ curl -d "blindedutxo=blindtest" -X POST localhost:3000/nack
+
+{"success":true}
+```
+The payer do a GET /ack with the same blindedutxo, if gets a `ack: true`, can broadcast the transaction, if get `nack: true` they need to negotiate again.
 ```
 $ curl 'localhost:3000/ack?blindedutxo=blindtest'
 
