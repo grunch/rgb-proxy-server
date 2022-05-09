@@ -11,6 +11,7 @@ interface Consignment {
   blindedutxo: string;
   ack?: boolean;
   nack?: boolean;
+  responded?: boolean;
 }
 
 let ds = Datastore.create();
@@ -59,7 +60,18 @@ export const loadApiEndpoints = (app: Application): void => {
       if (!c) {
         return res.status(500).send({ success: false });
       }
-      await ds.update({ blindedutxo: req.body.blindedutxo }, { $set: { ack: true, nack: false } }, { multi: false });
+      if (!!c.responded) {
+        return res.status(500).send({ success: false });
+      }
+      await ds.update(
+        { blindedutxo: req.body.blindedutxo },
+        { $set: {
+            ack: true,
+            nack: false,
+            responded: true,
+          } },
+        { multi: false },
+      );
       c = await ds.findOne({ blindedutxo: req.body.blindedutxo });
 
       return res.status(200).send({ success: true });
@@ -77,7 +89,18 @@ export const loadApiEndpoints = (app: Application): void => {
       if (!c) {
         return res.status(500).send({ success: false });
       }
-      await ds.update({ blindedutxo: req.body.blindedutxo }, { $set: { nack: true, ack: false } }, { multi: false });
+      if (!!c.responded) {
+        return res.status(500).send({ success: false });
+      }
+      await ds.update(
+        { blindedutxo: req.body.blindedutxo },
+        { $set: {
+          nack: true,
+          ack: false,
+          responded: true,
+        } },
+        { multi: false },
+      );
       c = await ds.findOne({ blindedutxo: req.body.blindedutxo });
 
       return res.status(200).send({ success: true });
