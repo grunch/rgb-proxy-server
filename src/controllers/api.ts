@@ -2,6 +2,7 @@ import { Application, Request, Response } from "express";
 import multer from "multer";
 import Datastore from "nedb-promises";
 import fs from "fs";
+import logger from '../logger';
 
 const FILE_PATH = './files/';
 const upload = multer({dest: FILE_PATH });
@@ -57,8 +58,9 @@ export const loadApiEndpoints = (app: Application): void => {
         return res.status(500).send({ success: false });
       }
       let c: Consignment | null = await ds.findOne({ blindedutxo: req.body.blindedutxo });
+
       if (!c) {
-        return res.status(500).send({ success: false });
+        throw new Error('No consignment found');
       }
       if (!!c.responded) {
         return res.status(500).send({ success: false });
@@ -76,6 +78,7 @@ export const loadApiEndpoints = (app: Application): void => {
 
       return res.status(200).send({ success: true });
     } catch (error) {
+      logger.error(error);
       res.status(500).send({ success: false });
     }
   });
@@ -115,7 +118,7 @@ export const loadApiEndpoints = (app: Application): void => {
         const c: Consignment | null = await ds.findOne({ blindedutxo: req.query.blindedutxo });
 
         if (!c) {
-          return res.status(500).send({ success: false });
+          throw new Error('No consignment found');
         }
         const ack = !!c.ack;
         const nack = !!c.nack;
@@ -129,6 +132,7 @@ export const loadApiEndpoints = (app: Application): void => {
 
       res.status(500).send({ success: false });
     } catch (error) {
+      logger.error(error);
       res.status(500).send({ success: false });
     }
   });
