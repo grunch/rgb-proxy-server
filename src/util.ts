@@ -9,4 +9,11 @@ const genHashFromFile = (fileName: string): string => {
   return hash.digest("hex");
 };
 
-export { genHashFromFile };
+// If dir doesn't exist we create it
+const setDir = (dir: string): string => {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+
+  return dir;
+};
+
+export { genHashFromFile, setDir };
