@@ -1,6 +1,7 @@
 # RGB proxy server
 
-![workflow](workflow.jpg)
+![workflow](https://user-images.githubusercontent.com/31323835/172573237-64078bb3-b6d7-46b8-b7fb-f81e1a062e46.png)
+
 
 ## Running the app
 
