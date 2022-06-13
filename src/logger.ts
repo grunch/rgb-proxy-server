@@ -16,9 +16,12 @@ const logger = winston.createLogger({
         }] ${info.message}`;
       } else {
         if (info.req) {
+          const ip = info.req.headers["x-forwarded-for"]
+            ? info.req.headers["x-forwarded-for"]
+            : info.req.ip;
           return `[${info.timestamp}] ${info.level}: -> [${
             httpContext.get("reqId") || "-"
-          }] ${info.req.ip || ""} ${info.req.method} ${info.req.originalUrl} ${
+          }] ${ip || ""} ${info.req.method} ${info.req.originalUrl} ${
             info.req.headers["user-agent"] || ""
           }`;
         } else {
