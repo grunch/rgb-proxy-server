@@ -1,13 +1,20 @@
 import express from "express";
 import httpContext from "express-http-context";
 import morgan from "morgan";
+import { homedir } from "os";
+import path from "path";
 
-import { loadApiEndpoints } from "./controllers/api";
 import logger from "./logger";
+import { setDir } from "./util";
+import { APP_DIR } from "./vars";
 
 let reqId = 0;
 // Create Express server
 const app = express();
+
+// Create app directory if it doesn't exist
+setDir(path.join(homedir(), APP_DIR));
+
 app.use(httpContext.middleware);
 // Set the Id to be used in the logs
 app.use(function (req, res, next) {
@@ -43,7 +50,5 @@ app.use(
 app.set("port", process.env.PORT || 3000);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-loadApiEndpoints(app);
 
 export default app;

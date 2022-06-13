@@ -1,15 +1,11 @@
 import dotenv from "dotenv";
-import fs from "fs";
-import { homedir } from "os";
-import path from "path";
 
 import app from "./app";
-import { setDir } from "./util";
-import { APP_DIR } from "./vars";
+import { loadApiEndpoints } from "./controllers/api";
 
 dotenv.config();
 
-setDir(path.join(homedir(), APP_DIR));
+loadApiEndpoints(app);
 
 /**
  * Start Express server.
