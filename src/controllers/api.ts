@@ -4,6 +4,7 @@ import multer from "multer";
 import Datastore from "nedb-promises";
 import { homedir } from "os";
 import path from "path";
+import httpContext from "express-http-context";
 
 import logger from "../logger";
 import { genHashFromFile, setDir } from "../util";
@@ -101,6 +102,8 @@ export const loadApiEndpoints = (app: Application): void => {
           blindedutxo: req.body.blindedutxo,
         };
         await ds.insert(consignment);
+        httpContext.set("blindedutxo", req.body.blindedutxo);
+        logger.notice("", { req: req });
         if (
           fs.existsSync(
             path.join(homedir(), APP_DIR, TMP_DIR, req.file.filename)

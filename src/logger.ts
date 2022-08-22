@@ -23,7 +23,7 @@ const logger = winston.createLogger({
             httpContext.get("reqId") || "-"
           }] ${ip || ""} ${info.req.method} ${info.req.originalUrl} ${
             info.req.headers["user-agent"] || ""
-          }`;
+          } ${httpContext.get("blindedutxo") || ""}`;
         } else {
           return `[${info.timestamp}] ${info.level}: -- [${
             httpContext.get("reqId") || "-"
