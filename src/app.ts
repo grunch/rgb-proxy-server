@@ -16,12 +16,13 @@ const app = express();
 setDir(path.join(homedir(), APP_DIR));
 
 app.use(httpContext.middleware);
+
 // Set the Id to be used in the logs
 app.use(function (req, res, next) {
   httpContext.ns.bindEmitter(req);
   httpContext.ns.bindEmitter(res);
-  // Assign an Id to each request or reuse it if it already exists
 
+  // Assign an Id to each request or reuse it if it already exists
   if (req.headers["logger-req-id"]) {
     reqId = +req.headers["logger-req-id"];
   } else {
@@ -31,7 +32,6 @@ app.use(function (req, res, next) {
   httpContext.set("reqId", reqId);
   // set the req-id to every response
   res.setHeader("logger-req-id", reqId);
-  logger.notice("", { req: req });
 
   next();
 });

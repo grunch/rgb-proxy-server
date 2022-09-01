@@ -1,10 +1,10 @@
 import { Application, Request, Response } from "express";
+import httpContext from "express-http-context";
 import fs from "fs";
 import multer from "multer";
 import Datastore from "nedb-promises";
 import { homedir } from "os";
 import path from "path";
-import httpContext from "express-http-context";
 
 import logger from "../logger";
 import { genHashFromFile, setDir } from "../util";
@@ -36,40 +36,57 @@ interface Consignment {
 
 const ds = Datastore.create(path.join(homedir(), APP_DIR, DATABASE_FILE));
 
+const middleware = (req: Request, res: Response, next: () => void) => {
+  logger.notice("", { req });
+
+  next();
+};
+
 export const loadApiEndpoints = (app: Application): void => {
-  app.get("/consignment/:blindedutxo", async (req: Request, res: Response) => {
-    try {
-      if (!!req.params.blindedutxo) {
-        const c: Consignment | null = await ds.findOne({
-          blindedutxo: req.params.blindedutxo,
-        });
-        if (!c) {
-          return res.status(404).send({
-            success: false,
-            error: "No consignment found!",
+  app.get(
+    "/consignment/:blindedutxo",
+    middleware,
+    async (req: Request, res: Response) => {
+      try {
+        if (!!req.params.blindedutxo) {
+          const c: Consignment | null = await ds.findOne({
+            blindedutxo: req.params.blindedutxo,
+          });
+          if (!c) {
+            return res.status(404).send({
+              success: false,
+              error: "No consignment found!",
+            });
+          }
+          const file_buffer = fs.readFileSync(
+            path.join(homedir(), APP_DIR, CONSIGNMENTS_DIR, c.filename)
+          );
+
+          return res.status(200).send({
+            success: true,
+            consignment: file_buffer.toString("base64"),
           });
         }
-        const file_buffer = fs.readFileSync(
-          path.join(homedir(), APP_DIR, CONSIGNMENTS_DIR, c.filename)
-        );
 
-        return res.status(200).send({
-          success: true,
-          consignment: file_buffer.toString("base64"),
-        });
+        res.status(400).send({ success: false, error: "blindedutxo missing!" });
+      } catch (error) {
+        res.status(500).send({ success: false });
       }
-
-      res.status(400).send({ success: false, error: "blindedutxo missing!" });
-    } catch (error) {
-      res.status(500).send({ success: false });
     }
-  });
+  );
 
   app.post(
     "/consignment",
     upload.single("consignment"),
     async (req: Request, res: Response) => {
       try {
+        if (!req.body.blindedutxo) {
+          return res
+            .status(400)
+            .send({ success: false, error: "blindedutxo missing!" });
+        }
+        httpContext.set("blindedutxo", req.body.blindedutxo);
+        logger.notice("", { req: req });
         if (!req.file) {
           return res
             .status(400)
@@ -102,8 +119,6 @@ export const loadApiEndpoints = (app: Application): void => {
           blindedutxo: req.body.blindedutxo,
         };
         await ds.insert(consignment);
-        httpContext.set("blindedutxo", req.body.blindedutxo);
-        logger.notice("", { req: req });
         if (
           fs.existsSync(
             path.join(homedir(), APP_DIR, TMP_DIR, req.file.filename)
@@ -129,6 +144,8 @@ export const loadApiEndpoints = (app: Application): void => {
           .status(400)
           .send({ success: false, error: "blindedutxo missing!" });
       }
+      httpContext.set("blindedutxo", req.body.blindedutxo);
+      logger.notice("", { req: req });
       const c: Consignment | null = await ds.findOne({
         blindedutxo: req.body.blindedutxo,
       });
@@ -165,8 +182,12 @@ export const loadApiEndpoints = (app: Application): void => {
   app.post("/nack", async (req: Request, res: Response) => {
     try {
       if (!req.body.blindedutxo) {
-        return res.status(400).send({ success: false });
+        return res
+          .status(400)
+          .send({ success: false, error: "blindedutxo missing!" });
       }
+      httpContext.set("blindedutxo", req.body.blindedutxo);
+      logger.notice("", { req: req });
       let c: Consignment | null = await ds.findOne({
         blindedutxo: req.body.blindedutxo,
       });
@@ -197,33 +218,37 @@ export const loadApiEndpoints = (app: Application): void => {
     }
   });
 
-  app.get("/ack/:blindedutxo", async (req: Request, res: Response) => {
-    try {
-      if (!req.params.blindedutxo) {
-        return res
-          .status(400)
-          .send({ success: false, error: "blindedutxo missing!" });
-      }
-      const c: Consignment | null = await ds.findOne({
-        blindedutxo: req.params.blindedutxo,
-      });
+  app.get(
+    "/ack/:blindedutxo",
+    middleware,
+    async (req: Request, res: Response) => {
+      try {
+        if (!req.params.blindedutxo) {
+          return res
+            .status(400)
+            .send({ success: false, error: "blindedutxo missing!" });
+        }
+        const c: Consignment | null = await ds.findOne({
+          blindedutxo: req.params.blindedutxo,
+        });
 
-      if (!c) {
-        return res
-          .status(404)
-          .send({ success: false, error: "No consignment found!" });
-      }
-      const ack = !!c.ack;
-      const nack = !!c.nack;
+        if (!c) {
+          return res
+            .status(404)
+            .send({ success: false, error: "No consignment found!" });
+        }
+        const ack = !!c.ack;
+        const nack = !!c.nack;
 
-      return res.status(200).send({
-        success: true,
-        ack,
-        nack,
-      });
-    } catch (error) {
-      logger.error(error);
-      res.status(500).send({ success: false });
+        return res.status(200).send({
+          success: true,
+          ack,
+          nack,
+        });
+      } catch (error) {
+        logger.error(error);
+        res.status(500).send({ success: false });
+      }
     }
-  });
+  );
 };
