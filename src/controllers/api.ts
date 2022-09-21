@@ -95,19 +95,17 @@ export const loadApiEndpoints = (app: Application): void => {
         const fileHash = genHashFromFile(
           path.join(homedir(), APP_DIR, TMP_DIR, req.file.filename)
         );
-        // We check if the file is already in consignments directory
-        if (
-          fs.existsSync(
-            path.join(homedir(), APP_DIR, CONSIGNMENTS_DIR, fileHash)
-          )
-        ) {
-          // We delete the file from the uploads directory
-          fs.unlinkSync(
-            path.join(homedir(), APP_DIR, TMP_DIR, req.file.filename)
-          );
-          return res
-            .status(403)
-            .send({ success: false, error: "File already uploaded!" });
+        const prevConsignment: Consignment | null = await ds.findOne({
+          blindedutxo: req.body.blindedutxo,
+        });
+        if (prevConsignment) {
+          if (prevConsignment.filename == fileHash) {
+            return res.status(200).send({ success: true });
+          } else {
+            return res
+              .status(403)
+              .send({ success: false, error: "Cannot change uploaded file!" });
+          }
         }
         // We move the file with the hash as name
         fs.renameSync(
