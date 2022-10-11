@@ -10,6 +10,7 @@ import logger from "../logger";
 import { genHashFromFile, setDir } from "../util";
 import { APP_DIR } from "../vars";
 
+const VERSION = process.env.npm_package_version;
 const TMP_DIR = "tmp";
 const CONSIGNMENTS_DIR = "consignments";
 const MEDIA_DIR = "media";
@@ -346,6 +347,17 @@ export const loadApiEndpoints = (app: Application): void => {
         logger.error(error);
         res.status(500).send({ success: false });
       }
+    }
+  );
+
+  app.get(
+    "/getinfo",
+    middleware,
+    async (_req: Request, res: Response) => {
+      return res.status(200).send({
+        version: VERSION,
+        uptime: Math.trunc(process.uptime()),
+      });
     }
   );
 };
