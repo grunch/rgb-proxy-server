@@ -9,8 +9,8 @@ import path from "path";
 import logger from "../logger";
 import { genHashFromFile, setDir } from "../util";
 import { APP_DIR } from "../vars";
+import { APP_VERSION } from "../version";
 
-const VERSION = process.env.npm_package_version;
 const TMP_DIR = "tmp";
 const CONSIGNMENTS_DIR = "consignments";
 const MEDIA_DIR = "media";
@@ -355,7 +355,7 @@ export const loadApiEndpoints = (app: Application): void => {
     middleware,
     async (_req: Request, res: Response) => {
       return res.status(200).send({
-        version: VERSION,
+        version: APP_VERSION,
         uptime: Math.trunc(process.uptime()),
       });
     }
