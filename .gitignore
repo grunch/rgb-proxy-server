@@ -6,6 +6,7 @@ node_modules
 
 # Ignore built ts files
 dist
+src/version.ts
 
 # consignments
 files/*

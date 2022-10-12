@@ -9,13 +9,16 @@ import path from "path";
 import logger from "../logger";
 import { genHashFromFile, setDir } from "../util";
 import { APP_DIR } from "../vars";
+import { APP_VERSION } from "../version";
 
 const TMP_DIR = "tmp";
 const CONSIGNMENTS_DIR = "consignments";
+const MEDIA_DIR = "media";
 const DATABASE_FILE = "app.db";
 // We make sure the directories exist
 setDir(path.join(homedir(), APP_DIR, TMP_DIR));
 setDir(path.join(homedir(), APP_DIR, CONSIGNMENTS_DIR));
+setDir(path.join(homedir(), APP_DIR, MEDIA_DIR));
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -32,6 +35,11 @@ interface Consignment {
   ack?: boolean;
   nack?: boolean;
   responded?: boolean;
+}
+
+interface Media {
+  filename: string;
+  attachment_id: string;
 }
 
 const ds = Datastore.create(path.join(homedir(), APP_DIR, DATABASE_FILE));
@@ -117,6 +125,98 @@ export const loadApiEndpoints = (app: Application): void => {
           blindedutxo: req.body.blindedutxo,
         };
         await ds.insert(consignment);
+        if (
+          fs.existsSync(
+            path.join(homedir(), APP_DIR, TMP_DIR, req.file.filename)
+          )
+        ) {
+          // We delete the file from the uploads directory
+          fs.unlinkSync(
+            path.join(homedir(), APP_DIR, TMP_DIR, req.file.filename)
+          );
+        }
+
+        return res.status(200).send({ success: true });
+      } catch (error) {
+        res.status(500).send({ success: false });
+      }
+    }
+  );
+
+  app.get(
+    "/media/:attachment_id",
+    middleware,
+    async (req: Request, res: Response) => {
+      try {
+        if (!!req.params.attachment_id) {
+          const media: Media | null = await ds.findOne({
+            attachment_id: req.params.attachment_id,
+          });
+          if (!media) {
+            return res.status(404).send({
+              success: false,
+              error: "No media found!",
+            });
+          }
+          const file_buffer = fs.readFileSync(
+            path.join(homedir(), APP_DIR, MEDIA_DIR, media.filename)
+          );
+
+          return res.status(200).send({
+            success: true,
+            media: file_buffer.toString("base64"),
+          });
+        }
+
+        res.status(400).send({ success: false, error: "attachment_id missing!" });
+      } catch (error) {
+        res.status(500).send({ success: false });
+      }
+    }
+  );
+
+  app.post(
+    "/media",
+    upload.single("media"),
+    async (req: Request, res: Response) => {
+      try {
+        if (!req.body.attachment_id) {
+          return res
+            .status(400)
+            .send({ success: false, error: "attachment_id missing!" });
+        }
+        httpContext.set("attachment_id", req.body.attachment_id);
+        logger.notice("", { req: req });
+        if (!req.file) {
+          return res
+            .status(400)
+            .send({ success: false, error: "Media file is missing!" });
+        }
+        const fileHash = genHashFromFile(
+          path.join(homedir(), APP_DIR, TMP_DIR, req.file.filename)
+        );
+        const prevMedia: Media | null = await ds.findOne({
+          attachment_id: req.body.attachment_id,
+        });
+        if (prevMedia) {
+          if (prevMedia.filename == fileHash) {
+            return res.status(200).send({ success: true });
+          } else {
+            return res
+              .status(403)
+              .send({ success: false, error: "Cannot change uploaded file!" });
+          }
+        }
+        // We move the file with the hash as name
+        fs.renameSync(
+          path.join(homedir(), APP_DIR, TMP_DIR, req.file.filename),
+          path.join(homedir(), APP_DIR, MEDIA_DIR, fileHash)
+        );
+        const media: Media = {
+          filename: fileHash,
+          attachment_id: req.body.attachment_id,
+        };
+        await ds.insert(media);
         if (
           fs.existsSync(
             path.join(homedir(), APP_DIR, TMP_DIR, req.file.filename)
@@ -247,6 +347,17 @@ export const loadApiEndpoints = (app: Application): void => {
         logger.error(error);
         res.status(500).send({ success: false });
       }
+    }
+  );
+
+  app.get(
+    "/getinfo",
+    middleware,
+    async (_req: Request, res: Response) => {
+      return res.status(200).send({
+        version: APP_VERSION,
+        uptime: Math.trunc(process.uptime()),
+      });
     }
   );
 };
