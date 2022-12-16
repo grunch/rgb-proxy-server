@@ -3,8 +3,12 @@
 ![workflow](https://user-images.githubusercontent.com/31323835/172648333-efd666c0-d8c3-48d8-b290-117c590c684c.png)
 
 RGB proxy server is intended to facilitate the relay of consignment data
-between RGB wallets, enabling a better user experience for wallet users. The
-proxy server is designed to handle the following workflow:
+between RGB wallets, enabling a better user experience for wallet users.
+
+The API it implements adheres to the
+[RGB HTTP JSON-RPC protocol](https://github.com/RGB-Tools/rgb-http-json-rpc).
+
+The proxy server is designed to handle the following workflow:
 
 - The payer of an RGB transfer posts to the proxy server the transfer
   consignment file using as identifier of the file the blinded UTXO provided by
@@ -48,22 +52,28 @@ npm run start
 ## How to use it
 
 The payee generates a blinded UTXO and sends it to the payer (not covered
-here). Let's assume the blinded UTXO is `blindtest`.
+here). Let's assume the blinded UTXO is `blindTest`.
 
 The payer sends the consignment file for the blinded UTXO to the proxy server:
 ```
 # let's create a fake consignment file and send it
 $ echo "consignment binary data" > consignment.rgb
-$ curl -X POST -F 'consignment=@consignment.rgb' -F 'blindedutxo=blindtest' localhost:3000/consignment
+$ curl -X POST -H 'Content-Type: multipart/form-data' \
+  -F 'jsonrpc=2.0' -F 'id="3"' -F 'method=consignment.post' \
+  -F 'params[blinded_utxo]=blindTest' -F 'file=@consignment.rgb' \
+  localhost:3000/json-rpc
 
-{"success":true}
+{"jsonrpc":"2.0","id":"3","result":true}
 ```
 
 The payee requests the consignment for the blinded UTXO:
 ```
-$ curl 'localhost:3000/consignment/blindtest'
+$ curl -X POST -H 'Content-Type: application/json' \
+  -d '{"jsonrpc": "2.0", "id": "7", "method": "consignment.get", "params": {"blinded_utxo": "blindTest"} }' \
+  localhost:3000/json-rpc
 
-{"success":true,"consignment":"Y29uc2lnbm1lbnQgYmluYXJ5IGRhdGEK"}
+{"jsonrpc":"2.0","id":"7","result":"Y29uc2lnbm1lbnQgYmluYXJ5IGRhdGEK"}
+
 ```
 The file is returned as a base64-encoded string:
 ```
@@ -71,35 +81,39 @@ $ echo 'Y29uc2lnbm1lbnQgYmluYXJ5IGRhdGEK' | base64 -d
 consignment binary data
 ```
 
-If ok with the consignment (validation passes), the payee hits the `/ack` POST
-call with the blinded UTXO:
+If ok with the consignment (validation passes), the payee calls:
 ```
-$ curl -d "blindedutxo=blindtest" -X POST localhost:3000/ack
+$ curl -X POST -H 'Content-Type: application/json' \
+  -d '{"jsonrpc": "2.0", "id": "9", "method": "ack.post", "params": {"blinded_utxo": "blindTest", "ack": true} }' \
+  localhost:3000/json-rpc
 
-{"success":true}
-```
-
-If not ok with the consignment, the payee hits the `/nack` POST call instead:
-```
-$ curl -d "blindedutxo=blindtest" -X POST localhost:3000/nack
-
-{"success":true}
+{"jsonrpc":"2.0","id":"9","result":true}
 ```
 
-The payer, placing a GET to the `/ack` endpoint, gets mutually exclusive values
-for `ack` and `nack`:
+If not ok with the consignment, the payee calls instead:
 ```
-$ curl 'localhost:3000/ack/blindtest'
+$ curl -X POST -H 'Content-Type: application/json' \
+  -d '{"jsonrpc": "2.0", "id": "8", "method": "ack.post", "params": {"blinded_utxo": "blindTest", "ack": false} }' \
+  localhost:3000/json-rpc
 
-{"success":true,"ack":true,"nack":false}
+{"jsonrpc":"2.0","id":"8","result":true}
+```
+
+The payer recieves the `ack` value (`null` if payee has not called `ack.post`
+yet):
+```
+$ curl -X POST -H 'Content-Type: application/json' \
+  -d '{"jsonrpc": "2.0", "id": "1", "method": "ack.get", "params": {"blinded_utxo": "blindTest"} }' \
+  localhost:3000/json-rpc
+
+{"jsonrpc":"2.0","id":"1","result":true}
 ```
 
 In case of approval the transaction can be broadcast, otherwise the two parties
 need to abort the transfer process and start from scratch.
 
-POST calls to the `/consignment`, `/ack` and `/nack` endpoints only work once,
-successive calls return a `403` reply. This means the consignment file for any
-given blinded UTXO and the related approval cannot be changed once submitted.
+The consignment or media file for any given blinded UTXO and the related
+approval cannot be changed once submitted.
 
 
 ## Testing

@@ -4,7 +4,7 @@ import morgan from "morgan";
 import { homedir } from "os";
 import path from "path";
 
-import logger from "./logger";
+import { logger, oldAPILogger } from "./logger";
 import { setDir } from "./util";
 import { APP_DIR } from "./vars";
 
@@ -38,9 +38,25 @@ app.use(function (req, res, next) {
 
 app.use(
   morgan(":status", {
+    skip: (req, _res) => {
+      return !req.originalUrl.startsWith("/json-rpc");
+    },
     stream: {
       write: (message: string) => {
-        logger.notice(message.trim(), { isFromMorgan: true });
+        logger.info(message.trim(), { isFromMorgan: true });
+      },
+    },
+  })
+);
+
+app.use(
+  morgan(":status", {
+    skip: (req, _res) => {
+      return req.originalUrl.startsWith("/json-rpc");
+    },
+    stream: {
+      write: (message: string) => {
+        oldAPILogger.notice(message.trim(), { isFromMorgan: true });
       },
     },
   })
