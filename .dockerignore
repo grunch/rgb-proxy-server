@@ -1,0 +1,10 @@
+*
+
+!/src/
+!/LICENSE
+!/package-lock.json
+!/package.json
+!/README.md
+!/tsconfig.json
+
+/src/version.ts
