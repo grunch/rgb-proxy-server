@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "blinded_utxo"
+  ],
+  "properties": {
+    "blinded_utxo": {
+      "type": "string",
+      "description": "The blinded UTXO for which we want to know ACK status."
+    }
+  }
+}

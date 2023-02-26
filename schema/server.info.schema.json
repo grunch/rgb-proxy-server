@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "version"
+  ],
+  "properties": {
+    "protocol_version": {
+      "type": "string",
+      "description": "version of the JSON-RPC protocol"
+    },
+    "version": {
+      "type": "string",
+      "description": "node software version"
+    },
+    "uptime": {
+      "type": "integer",
+      "description": "how long the server has been run (in seconds)."
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attachment_id"
+  ],
+  "properties": {
+    "attachment_id": {
+      "type": "string",
+      "description": "Attachment id for which we want to upload a media file"
+    }
+  }
+}
