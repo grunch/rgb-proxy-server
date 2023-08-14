@@ -60,7 +60,7 @@ The payer sends the consignment file for the blinded UTXO to the proxy server:
 $ echo "consignment binary data" > consignment.rgb
 $ curl -X POST -H 'Content-Type: multipart/form-data' \
   -F 'jsonrpc=2.0' -F 'id="3"' -F 'method=consignment.post' \
-  -F 'params[blinded_utxo]=blindTest' -F 'params[txid]=txid' -F 'file=@consignment.rgb' \
+  -F 'params[recipient_id]=blindTest' -F 'params[txid]=txid' -F 'file=@consignment.rgb' \
   localhost:3000/json-rpc
 
 {"jsonrpc":"2.0","id":"3","result":true}
@@ -69,7 +69,7 @@ $ curl -X POST -H 'Content-Type: multipart/form-data' \
 The payee requests the consignment for the blinded UTXO:
 ```
 $ curl -X POST -H 'Content-Type: application/json' \
-  -d '{"jsonrpc": "2.0", "id": "7", "method": "consignment.get", "params": {"blinded_utxo": "blindTest"} }' \
+  -d '{"jsonrpc": "2.0", "id": "7", "method": "consignment.get", "params": {"recipient_id": "blindTest"} }' \
   localhost:3000/json-rpc
 
 {"jsonrpc":"2.0","id":"7","result": {"consignment": "Y29uc2lnbm1lbnQgYmluYXJ5IGRhdGEK", "txid": "aTxid"}}
@@ -84,7 +84,7 @@ consignment binary data
 If ok with the consignment (validation passes), the payee calls:
 ```
 $ curl -X POST -H 'Content-Type: application/json' \
-  -d '{"jsonrpc": "2.0", "id": "9", "method": "ack.post", "params": {"blinded_utxo": "blindTest", "ack": true} }' \
+  -d '{"jsonrpc": "2.0", "id": "9", "method": "ack.post", "params": {"recipient_id": "blindTest", "ack": true} }' \
   localhost:3000/json-rpc
 
 {"jsonrpc":"2.0","id":"9","result":true}
@@ -93,7 +93,7 @@ $ curl -X POST -H 'Content-Type: application/json' \
 If not ok with the consignment, the payee calls instead:
 ```
 $ curl -X POST -H 'Content-Type: application/json' \
-  -d '{"jsonrpc": "2.0", "id": "8", "method": "ack.post", "params": {"blinded_utxo": "blindTest", "ack": false} }' \
+  -d '{"jsonrpc": "2.0", "id": "8", "method": "ack.post", "params": {"recipient_id": "blindTest", "ack": false} }' \
   localhost:3000/json-rpc
 
 {"jsonrpc":"2.0","id":"8","result":true}
@@ -103,7 +103,7 @@ The payer recieves the `ack` value (`null` if payee has not called `ack.post`
 yet):
 ```
 $ curl -X POST -H 'Content-Type: application/json' \
-  -d '{"jsonrpc": "2.0", "id": "1", "method": "ack.get", "params": {"blinded_utxo": "blindTest"} }' \
+  -d '{"jsonrpc": "2.0", "id": "1", "method": "ack.get", "params": {"recipient_id": "blindTest"} }' \
   localhost:3000/json-rpc
 
 {"jsonrpc":"2.0","id":"1","result":true}

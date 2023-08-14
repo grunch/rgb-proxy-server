@@ -17,13 +17,13 @@ import {
   CannotChangeUploadedFile,
   InvalidAck,
   InvalidAttachmentID,
-  InvalidBlindedUTXO,
+  InvalidRecipientID,
   InvalidTxid,
   InvalidVout,
   MissingAck,
   MissingAttachmentID,
-  MissingBlindedUTXO,
   MissingFile,
+  MissingRecipientID,
   MissingTxid,
   NotFoundConsignment,
   NotFoundMedia,
@@ -70,7 +70,7 @@ interface ConsignmentGetRes {
 interface Consignment {
   _id?: string;
   filename: string;
-  blindedutxo: string;
+  recipient_id: string;
   txid: string;
   vout?: number;
   ack?: boolean;
@@ -156,18 +156,18 @@ function getAttachmentIDParam(
   return attachmentID as string;
 }
 
-function getBlindedUTXOParam(
+function getRecipientIDParam(
   jsonRpcParams: Partial<JSONRPCParams> | undefined
 ) {
-  const blindedUTXOKey = "blinded_utxo";
-  if (!isDictionary(jsonRpcParams) || !(blindedUTXOKey in jsonRpcParams)) {
-    throw new MissingBlindedUTXO(jsonRpcParams);
+  const recipientIDKey = "recipient_id";
+  if (!isDictionary(jsonRpcParams) || !(recipientIDKey in jsonRpcParams)) {
+    throw new MissingRecipientID(jsonRpcParams);
   }
-  const blindedUTXO = jsonRpcParams[blindedUTXOKey];
-  if (!blindedUTXO || !isString(blindedUTXO)) {
-    throw new InvalidBlindedUTXO(jsonRpcParams);
+  const recipientID = jsonRpcParams[recipientIDKey];
+  if (!recipientID || !isString(recipientID)) {
+    throw new InvalidRecipientID(jsonRpcParams);
   }
-  return blindedUTXO as string;
+  return recipientID as string;
 }
 
 function getTxidParam(jsonRpcParams: Partial<JSONRPCParams> | undefined) {
@@ -197,9 +197,9 @@ function getVoutParam(jsonRpcParams: Partial<JSONRPCParams> | undefined) {
 async function getConsignment(
   jsonRpcParams: Partial<JSONRPCParams> | undefined
 ) {
-  const blindedUTXO = getBlindedUTXOParam(jsonRpcParams);
+  const recipientID = getRecipientIDParam(jsonRpcParams);
   const consignment: Consignment | null = await ds.findOne({
-    blindedutxo: blindedUTXO,
+    recipient_id: recipientID,
   });
   if (!consignment) {
     throw new NotFoundConsignment(jsonRpcParams);
@@ -249,7 +249,7 @@ jsonRpcServer.addMethod(
   async (jsonRpcParams, serverParams): Promise<boolean> => {
     const file = serverParams?.file;
     try {
-      const blindedUTXO = getBlindedUTXOParam(jsonRpcParams);
+      const recipientID = getRecipientIDParam(jsonRpcParams);
       const txid = getTxidParam(jsonRpcParams);
       const vout = getVoutParam(jsonRpcParams);
       if (!file) {
@@ -258,7 +258,7 @@ jsonRpcServer.addMethod(
       const uploadedFile = path.join(tempDir, file.filename);
       const fileHash = genHashFromFile(uploadedFile);
       const prevFile: Consignment | null = await ds.findOne({
-        blindedutxo: blindedUTXO,
+        recipient_id: recipientID,
       });
       if (prevFile) {
         if (prevFile.filename === fileHash) {
@@ -271,7 +271,7 @@ jsonRpcServer.addMethod(
       fs.renameSync(uploadedFile, path.join(consignmentDir, fileHash));
       const consignment: Consignment = {
         filename: fileHash,
-        blindedutxo: blindedUTXO,
+        recipient_id: recipientID,
         txid: txid,
         vout: vout,
       };
@@ -366,7 +366,7 @@ jsonRpcServer.addMethod(
       }
     }
     await ds.update(
-      { blindedutxo: consignment.blindedutxo },
+      { recipient_id: consignment.recipient_id },
       { $set: { ack: ack } },
       { multi: false }
     );
