@@ -33,7 +33,7 @@ import { genHashFromFile, setDir } from "../util";
 import { APP_DIR } from "../vars";
 import { APP_VERSION } from "../version";
 
-const PROTOCOL_VERSION = "0.1";
+const PROTOCOL_VERSION = "0.2";
 
 const DATABASE_FILE = "app.db";
 

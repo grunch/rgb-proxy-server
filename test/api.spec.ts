@@ -21,6 +21,6 @@ describe("POST /json-rpc", () => {
       .expect(200);
     expect(res.body.jsonrpc).toStrictEqual(jsonrpcVersion);
     expect(res.body.id).toStrictEqual(reqID);
-    expect(res.body.result.protocol_version).toStrictEqual("0.1");
+    expect(res.body.result.protocol_version).toStrictEqual("0.2");
   });
 });
