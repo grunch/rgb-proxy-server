@@ -60,7 +60,7 @@ The payer sends the consignment file for the blinded UTXO to the proxy server:
 $ echo "consignment binary data" > consignment.rgb
 $ curl -X POST -H 'Content-Type: multipart/form-data' \
   -F 'jsonrpc=2.0' -F 'id="3"' -F 'method=consignment.post' \
-  -F 'params[blinded_utxo]=blindTest' -F 'file=@consignment.rgb' \
+  -F 'params[blinded_utxo]=blindTest' -F 'params[txid]=txid' -F 'file=@consignment.rgb' \
   localhost:3000/json-rpc
 
 {"jsonrpc":"2.0","id":"3","result":true}
@@ -72,7 +72,7 @@ $ curl -X POST -H 'Content-Type: application/json' \
   -d '{"jsonrpc": "2.0", "id": "7", "method": "consignment.get", "params": {"blinded_utxo": "blindTest"} }' \
   localhost:3000/json-rpc
 
-{"jsonrpc":"2.0","id":"7","result":"Y29uc2lnbm1lbnQgYmluYXJ5IGRhdGEK"}
+{"jsonrpc":"2.0","id":"7","result": {"consignment": "Y29uc2lnbm1lbnQgYmluYXJ5IGRhdGEK", "txid": "aTxid"}}
 
 ```
 The file is returned as a base64-encoded string:

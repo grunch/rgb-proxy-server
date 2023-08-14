@@ -18,10 +18,13 @@ import {
   InvalidAck,
   InvalidAttachmentID,
   InvalidBlindedUTXO,
+  InvalidTxid,
+  InvalidVout,
   MissingAck,
   MissingAttachmentID,
   MissingBlindedUTXO,
   MissingFile,
+  MissingTxid,
   NotFoundConsignment,
   NotFoundMedia,
 } from "../errors";
@@ -58,10 +61,18 @@ interface ServerInfo {
   uptime: number;
 }
 
+interface ConsignmentGetRes {
+  consignment: string;
+  txid: string;
+  vout?: number;
+}
+
 interface Consignment {
   _id?: string;
   filename: string;
   blindedutxo: string;
+  txid: string;
+  vout?: number;
   ack?: boolean;
   nack?: boolean; // to be removed when removing old APIs
   responded?: boolean; // to be removed when removing old APIs
@@ -80,6 +91,10 @@ function isBoolean(data: unknown): data is boolean {
 
 function isDictionary(data: unknown): data is Record<keyof never, unknown> {
   return typeof data === "object" && !Array.isArray(data) && data !== null;
+}
+
+function isNumber(data: unknown): data is string {
+  return Number.isInteger(Number(data)) && data !== null;
 }
 
 function isString(data: unknown): data is string {
@@ -155,6 +170,30 @@ function getBlindedUTXOParam(
   return blindedUTXO as string;
 }
 
+function getTxidParam(jsonRpcParams: Partial<JSONRPCParams> | undefined) {
+  const txidKey = "txid";
+  if (!isDictionary(jsonRpcParams) || !(txidKey in jsonRpcParams)) {
+    throw new MissingTxid(jsonRpcParams);
+  }
+  const txid = jsonRpcParams[txidKey];
+  if (!txid || !isString(txid)) {
+    throw new InvalidTxid(jsonRpcParams);
+  }
+  return txid as string;
+}
+
+function getVoutParam(jsonRpcParams: Partial<JSONRPCParams> | undefined) {
+  const voutKey = "vout";
+  if (isDictionary(jsonRpcParams) && voutKey in jsonRpcParams) {
+    const vout = jsonRpcParams[voutKey];
+    if (!isNumber(vout)) {
+      throw new InvalidVout(jsonRpcParams);
+    }
+    return vout as unknown as number;
+  }
+  return undefined;
+}
+
 async function getConsignment(
   jsonRpcParams: Partial<JSONRPCParams> | undefined
 ) {
@@ -192,12 +231,16 @@ jsonRpcServer.addMethod(
 
 jsonRpcServer.addMethod(
   "consignment.get",
-  async (jsonRpcParams, _serverParams): Promise<string> => {
+  async (jsonRpcParams, _serverParams): Promise<ConsignmentGetRes> => {
     const consignment = await getConsignment(jsonRpcParams);
     const fileBuffer = fs.readFileSync(
       path.join(consignmentDir, consignment.filename)
     );
-    return fileBuffer.toString("base64");
+    return {
+      consignment: fileBuffer.toString("base64"),
+      txid: consignment.txid,
+      vout: consignment.vout,
+    };
   }
 );
 
@@ -207,6 +250,8 @@ jsonRpcServer.addMethod(
     const file = serverParams?.file;
     try {
       const blindedUTXO = getBlindedUTXOParam(jsonRpcParams);
+      const txid = getTxidParam(jsonRpcParams);
+      const vout = getVoutParam(jsonRpcParams);
       if (!file) {
         throw new MissingFile(jsonRpcParams);
       }
@@ -227,6 +272,8 @@ jsonRpcServer.addMethod(
       const consignment: Consignment = {
         filename: fileHash,
         blindedutxo: blindedUTXO,
+        txid: txid,
+        vout: vout,
       };
       await ds.insert(consignment);
       return true;

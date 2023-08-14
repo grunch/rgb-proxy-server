@@ -30,6 +30,18 @@ export class InvalidBlindedUTXO extends JSONRPCErrorException {
   }
 }
 
+export class InvalidTxid extends JSONRPCErrorException {
+  constructor(data?: object) {
+    super("Invalid TXID", -203, data);
+  }
+}
+
+export class InvalidVout extends JSONRPCErrorException {
+  constructor(data?: object) {
+    super("Invalid vout", -204, data);
+  }
+}
+
 export class MissingAck extends JSONRPCErrorException {
   constructor(data?: object) {
     super("Missing ACK", -300, data);
@@ -51,6 +63,12 @@ export class MissingBlindedUTXO extends JSONRPCErrorException {
 export class MissingFile extends JSONRPCErrorException {
   constructor(data?: object) {
     super("Missing file", -303, data);
+  }
+}
+
+export class MissingTxid extends JSONRPCErrorException {
+  constructor(data?: object) {
+    super("Missing TXID", -303, data);
   }
 }
 
