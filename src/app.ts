@@ -2,19 +2,12 @@ import cors from "cors";
 import express from "express";
 import httpContext from "express-http-context";
 import morgan from "morgan";
-import { homedir } from "os";
-import path from "path";
 
 import { logger } from "./logger";
-import { setDir } from "./util";
-import { APP_DIR } from "./vars";
 
 let reqId = 0;
 // Create Express server
 const app = express();
-
-// Create app directory if it doesn't exist
-setDir(path.join(homedir(), APP_DIR));
 
 // Allow request from any origin
 app.use(cors());

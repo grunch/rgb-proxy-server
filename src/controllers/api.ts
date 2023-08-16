@@ -30,22 +30,12 @@ import {
 } from "../errors";
 import { logger } from "../logger";
 import { genHashFromFile, setDir } from "../util";
-import { APP_DIR } from "../vars";
+import { DEFAULT_APP_DIR_NAME } from "../vars";
 import { APP_VERSION } from "../version";
 
 const PROTOCOL_VERSION = "0.2";
 
 const DATABASE_FILE = "app.db";
-
-const appDir = path.join(homedir(), APP_DIR);
-const tempDir = path.join(appDir, "tmp");
-const consignmentDir = path.join(appDir, "consignments");
-const mediaDir = path.join(appDir, "media");
-
-// We make sure the directories exist
-setDir(tempDir);
-setDir(consignmentDir);
-setDir(mediaDir);
 
 const storage = multer.diskStorage({
   destination: function (_req, _file, cb) {
@@ -54,6 +44,12 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+
+let appDir: string;
+let ds: Datastore<{ _id: string }>;
+let tempDir: string;
+let consignmentDir: string;
+let mediaDir: string;
 
 interface ServerInfo {
   version: string;
@@ -82,8 +78,6 @@ interface Media {
   filename: string;
   attachment_id: string;
 }
-
-const ds = Datastore.create(path.join(homedir(), APP_DIR, DATABASE_FILE));
 
 function isBoolean(data: unknown): data is boolean {
   return Boolean(data) === data;
@@ -375,6 +369,18 @@ jsonRpcServer.addMethod(
 );
 
 export const loadApiEndpoints = (app: Application): void => {
+  // setup app directories
+  appDir = process.env.APP_DIR || path.join(homedir(), DEFAULT_APP_DIR_NAME);
+  setDir(appDir);
+  ds = Datastore.create(path.join(appDir, DATABASE_FILE));
+  tempDir = path.join(appDir, "tmp");
+  consignmentDir = path.join(appDir, "consignments");
+  mediaDir = path.join(appDir, "media");
+  setDir(tempDir);
+  setDir(consignmentDir);
+  setDir(mediaDir);
+
+  // setup app route
   app.post(
     "/json-rpc",
     upload.single("file"),
