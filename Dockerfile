@@ -9,8 +9,9 @@ WORKDIR "/srv"
 COPY package.json package-lock.json tsconfig.json ./
 COPY src ./src
 
-RUN npm install
-RUN npm run build
+RUN npm install \
+ && npm run build \
+ && chown -R root:root /srv
 
 ENV NODE_ENV="production"
 
