@@ -1,3 +1,4 @@
+import cors from "cors";
 import express from "express";
 import httpContext from "express-http-context";
 import morgan from "morgan";
@@ -14,6 +15,9 @@ const app = express();
 
 // Create app directory if it doesn't exist
 setDir(path.join(homedir(), APP_DIR));
+
+// Allow request from any origin
+app.use(cors());
 
 app.use(httpContext.middleware);
 
