@@ -2,19 +2,12 @@ import cors from "cors";
 import express from "express";
 import httpContext from "express-http-context";
 import morgan from "morgan";
-import { homedir } from "os";
-import path from "path";
 
-import { logger, oldAPILogger } from "./logger";
-import { setDir } from "./util";
-import { APP_DIR } from "./vars";
+import { logger } from "./logger";
 
 let reqId = 0;
 // Create Express server
 const app = express();
-
-// Create app directory if it doesn't exist
-setDir(path.join(homedir(), APP_DIR));
 
 // Allow request from any origin
 app.use(cors());
@@ -48,19 +41,6 @@ app.use(
     stream: {
       write: (message: string) => {
         logger.info(message.trim(), { isFromMorgan: true });
-      },
-    },
-  })
-);
-
-app.use(
-  morgan(":status", {
-    skip: (req, _res) => {
-      return req.originalUrl.startsWith("/json-rpc");
-    },
-    stream: {
-      write: (message: string) => {
-        oldAPILogger.notice(message.trim(), { isFromMorgan: true });
       },
     },
   })

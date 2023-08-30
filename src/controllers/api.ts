@@ -17,32 +17,25 @@ import {
   CannotChangeUploadedFile,
   InvalidAck,
   InvalidAttachmentID,
-  InvalidBlindedUTXO,
+  InvalidRecipientID,
+  InvalidTxid,
+  InvalidVout,
   MissingAck,
   MissingAttachmentID,
-  MissingBlindedUTXO,
   MissingFile,
+  MissingRecipientID,
+  MissingTxid,
   NotFoundConsignment,
   NotFoundMedia,
 } from "../errors";
-import { logger, oldAPILogger } from "../logger";
+import { logger } from "../logger";
 import { genHashFromFile, setDir } from "../util";
-import { APP_DIR } from "../vars";
+import { DEFAULT_APP_DIR_NAME } from "../vars";
 import { APP_VERSION } from "../version";
 
-const PROTOCOL_VERSION = "0.1";
+const PROTOCOL_VERSION = "0.2";
 
 const DATABASE_FILE = "app.db";
-
-const appDir = path.join(homedir(), APP_DIR);
-const tempDir = path.join(appDir, "tmp");
-const consignmentDir = path.join(appDir, "consignments");
-const mediaDir = path.join(appDir, "media");
-
-// We make sure the directories exist
-setDir(tempDir);
-setDir(consignmentDir);
-setDir(mediaDir);
 
 const storage = multer.diskStorage({
   destination: function (_req, _file, cb) {
@@ -52,16 +45,30 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+let appDir: string;
+let ds: Datastore<{ _id: string }>;
+let tempDir: string;
+let consignmentDir: string;
+let mediaDir: string;
+
 interface ServerInfo {
   version: string;
   protocol_version: string;
   uptime: number;
 }
 
+interface ConsignmentGetRes {
+  consignment: string;
+  txid: string;
+  vout?: number;
+}
+
 interface Consignment {
   _id?: string;
   filename: string;
-  blindedutxo: string;
+  recipient_id: string;
+  txid: string;
+  vout?: number;
   ack?: boolean;
   nack?: boolean; // to be removed when removing old APIs
   responded?: boolean; // to be removed when removing old APIs
@@ -72,20 +79,16 @@ interface Media {
   attachment_id: string;
 }
 
-const ds = Datastore.create(path.join(homedir(), APP_DIR, DATABASE_FILE));
-
-const middleware = (req: Request, _res: Response, next: () => void) => {
-  oldAPILogger.notice("", { req });
-
-  next();
-};
-
 function isBoolean(data: unknown): data is boolean {
   return Boolean(data) === data;
 }
 
 function isDictionary(data: unknown): data is Record<keyof never, unknown> {
   return typeof data === "object" && !Array.isArray(data) && data !== null;
+}
+
+function isNumber(data: unknown): data is string {
+  return Number.isInteger(Number(data)) && data !== null;
 }
 
 function isString(data: unknown): data is string {
@@ -147,26 +150,50 @@ function getAttachmentIDParam(
   return attachmentID as string;
 }
 
-function getBlindedUTXOParam(
+function getRecipientIDParam(
   jsonRpcParams: Partial<JSONRPCParams> | undefined
 ) {
-  const blindedUTXOKey = "blinded_utxo";
-  if (!isDictionary(jsonRpcParams) || !(blindedUTXOKey in jsonRpcParams)) {
-    throw new MissingBlindedUTXO(jsonRpcParams);
+  const recipientIDKey = "recipient_id";
+  if (!isDictionary(jsonRpcParams) || !(recipientIDKey in jsonRpcParams)) {
+    throw new MissingRecipientID(jsonRpcParams);
   }
-  const blindedUTXO = jsonRpcParams[blindedUTXOKey];
-  if (!blindedUTXO || !isString(blindedUTXO)) {
-    throw new InvalidBlindedUTXO(jsonRpcParams);
+  const recipientID = jsonRpcParams[recipientIDKey];
+  if (!recipientID || !isString(recipientID)) {
+    throw new InvalidRecipientID(jsonRpcParams);
   }
-  return blindedUTXO as string;
+  return recipientID as string;
+}
+
+function getTxidParam(jsonRpcParams: Partial<JSONRPCParams> | undefined) {
+  const txidKey = "txid";
+  if (!isDictionary(jsonRpcParams) || !(txidKey in jsonRpcParams)) {
+    throw new MissingTxid(jsonRpcParams);
+  }
+  const txid = jsonRpcParams[txidKey];
+  if (!txid || !isString(txid)) {
+    throw new InvalidTxid(jsonRpcParams);
+  }
+  return txid as string;
+}
+
+function getVoutParam(jsonRpcParams: Partial<JSONRPCParams> | undefined) {
+  const voutKey = "vout";
+  if (isDictionary(jsonRpcParams) && voutKey in jsonRpcParams) {
+    const vout = jsonRpcParams[voutKey];
+    if (!isNumber(vout)) {
+      throw new InvalidVout(jsonRpcParams);
+    }
+    return vout as unknown as number;
+  }
+  return undefined;
 }
 
 async function getConsignment(
   jsonRpcParams: Partial<JSONRPCParams> | undefined
 ) {
-  const blindedUTXO = getBlindedUTXOParam(jsonRpcParams);
+  const recipientID = getRecipientIDParam(jsonRpcParams);
   const consignment: Consignment | null = await ds.findOne({
-    blindedutxo: blindedUTXO,
+    recipient_id: recipientID,
   });
   if (!consignment) {
     throw new NotFoundConsignment(jsonRpcParams);
@@ -198,12 +225,16 @@ jsonRpcServer.addMethod(
 
 jsonRpcServer.addMethod(
   "consignment.get",
-  async (jsonRpcParams, _serverParams): Promise<string> => {
+  async (jsonRpcParams, _serverParams): Promise<ConsignmentGetRes> => {
     const consignment = await getConsignment(jsonRpcParams);
     const fileBuffer = fs.readFileSync(
       path.join(consignmentDir, consignment.filename)
     );
-    return fileBuffer.toString("base64");
+    return {
+      consignment: fileBuffer.toString("base64"),
+      txid: consignment.txid,
+      vout: consignment.vout,
+    };
   }
 );
 
@@ -212,14 +243,16 @@ jsonRpcServer.addMethod(
   async (jsonRpcParams, serverParams): Promise<boolean> => {
     const file = serverParams?.file;
     try {
-      const blindedUTXO = getBlindedUTXOParam(jsonRpcParams);
+      const recipientID = getRecipientIDParam(jsonRpcParams);
+      const txid = getTxidParam(jsonRpcParams);
+      const vout = getVoutParam(jsonRpcParams);
       if (!file) {
         throw new MissingFile(jsonRpcParams);
       }
       const uploadedFile = path.join(tempDir, file.filename);
       const fileHash = genHashFromFile(uploadedFile);
       const prevFile: Consignment | null = await ds.findOne({
-        blindedutxo: blindedUTXO,
+        recipient_id: recipientID,
       });
       if (prevFile) {
         if (prevFile.filename === fileHash) {
@@ -232,7 +265,9 @@ jsonRpcServer.addMethod(
       fs.renameSync(uploadedFile, path.join(consignmentDir, fileHash));
       const consignment: Consignment = {
         filename: fileHash,
-        blindedutxo: blindedUTXO,
+        recipient_id: recipientID,
+        txid: txid,
+        vout: vout,
       };
       await ds.insert(consignment);
       return true;
@@ -325,7 +360,7 @@ jsonRpcServer.addMethod(
       }
     }
     await ds.update(
-      { blindedutxo: consignment.blindedutxo },
+      { recipient_id: consignment.recipient_id },
       { $set: { ack: ack } },
       { multi: false }
     );
@@ -334,6 +369,18 @@ jsonRpcServer.addMethod(
 );
 
 export const loadApiEndpoints = (app: Application): void => {
+  // setup app directories
+  appDir = process.env.APP_DIR || path.join(homedir(), DEFAULT_APP_DIR_NAME);
+  setDir(appDir);
+  ds = Datastore.create(path.join(appDir, DATABASE_FILE));
+  tempDir = path.join(appDir, "tmp");
+  consignmentDir = path.join(appDir, "consignments");
+  mediaDir = path.join(appDir, "media");
+  setDir(tempDir);
+  setDir(consignmentDir);
+  setDir(mediaDir);
+
+  // setup app route
   app.post(
     "/json-rpc",
     upload.single("file"),
@@ -401,296 +448,4 @@ export const loadApiEndpoints = (app: Application): void => {
         });
     }
   );
-
-  app.get(
-    "/consignment/:blindedutxo",
-    middleware,
-    async (req: Request, res: Response) => {
-      try {
-        if (!!req.params.blindedutxo) {
-          const c: Consignment | null = await ds.findOne({
-            blindedutxo: req.params.blindedutxo,
-          });
-          if (!c) {
-            return res.status(404).send({
-              success: false,
-              error: "No consignment found!",
-            });
-          }
-          const file_buffer = fs.readFileSync(
-            path.join(consignmentDir, c.filename)
-          );
-
-          return res.status(200).send({
-            success: true,
-            consignment: file_buffer.toString("base64"),
-          });
-        }
-
-        res.status(400).send({ success: false, error: "blindedutxo missing!" });
-      } catch (error) {
-        res.status(500).send({ success: false });
-      }
-    }
-  );
-
-  app.post(
-    "/consignment",
-    upload.single("consignment"),
-    async (req: Request, res: Response) => {
-      try {
-        if (!req.body.blindedutxo) {
-          return res
-            .status(400)
-            .send({ success: false, error: "blindedutxo missing!" });
-        }
-        httpContext.set("blindedutxo", req.body.blindedutxo);
-        oldAPILogger.notice("", { req: req });
-        if (!req.file) {
-          return res
-            .status(400)
-            .send({ success: false, error: "Consignment file is missing!" });
-        }
-        const fileHash = genHashFromFile(path.join(tempDir, req.file.filename));
-        const prevConsignment: Consignment | null = await ds.findOne({
-          blindedutxo: req.body.blindedutxo,
-        });
-        if (prevConsignment) {
-          if (prevConsignment.filename == fileHash) {
-            return res.status(200).send({ success: true });
-          } else {
-            return res
-              .status(403)
-              .send({ success: false, error: "Cannot change uploaded file!" });
-          }
-        }
-        // We move the file with the hash as name
-        fs.renameSync(
-          path.join(tempDir, req.file.filename),
-          path.join(consignmentDir, fileHash)
-        );
-        const consignment: Consignment = {
-          filename: fileHash,
-          blindedutxo: req.body.blindedutxo,
-        };
-        await ds.insert(consignment);
-        if (fs.existsSync(path.join(tempDir, req.file.filename))) {
-          // We delete the file from the uploads directory
-          fs.unlinkSync(path.join(tempDir, req.file.filename));
-        }
-
-        return res.status(200).send({ success: true });
-      } catch (error) {
-        res.status(500).send({ success: false });
-      }
-    }
-  );
-
-  app.get(
-    "/media/:attachment_id",
-    middleware,
-    async (req: Request, res: Response) => {
-      try {
-        if (!!req.params.attachment_id) {
-          const media: Media | null = await ds.findOne({
-            attachment_id: req.params.attachment_id,
-          });
-          if (!media) {
-            return res.status(404).send({
-              success: false,
-              error: "No media found!",
-            });
-          }
-          const file_buffer = fs.readFileSync(
-            path.join(mediaDir, media.filename)
-          );
-
-          return res.status(200).send({
-            success: true,
-            media: file_buffer.toString("base64"),
-          });
-        }
-
-        res
-          .status(400)
-          .send({ success: false, error: "attachment_id missing!" });
-      } catch (error) {
-        res.status(500).send({ success: false });
-      }
-    }
-  );
-
-  app.post(
-    "/media",
-    upload.single("media"),
-    async (req: Request, res: Response) => {
-      try {
-        if (!req.body.attachment_id) {
-          return res
-            .status(400)
-            .send({ success: false, error: "attachment_id missing!" });
-        }
-        httpContext.set("attachment_id", req.body.attachment_id);
-        oldAPILogger.notice("", { req: req });
-        if (!req.file) {
-          return res
-            .status(400)
-            .send({ success: false, error: "Media file is missing!" });
-        }
-        const fileHash = genHashFromFile(path.join(tempDir, req.file.filename));
-        const prevMedia: Media | null = await ds.findOne({
-          attachment_id: req.body.attachment_id,
-        });
-        if (prevMedia) {
-          if (prevMedia.filename == fileHash) {
-            return res.status(200).send({ success: true });
-          } else {
-            return res
-              .status(403)
-              .send({ success: false, error: "Cannot change uploaded file!" });
-          }
-        }
-        // We move the file with the hash as name
-        fs.renameSync(
-          path.join(tempDir, req.file.filename),
-          path.join(mediaDir, fileHash)
-        );
-        const media: Media = {
-          filename: fileHash,
-          attachment_id: req.body.attachment_id,
-        };
-        await ds.insert(media);
-        if (fs.existsSync(path.join(tempDir, req.file.filename))) {
-          // We delete the file from the uploads directory
-          fs.unlinkSync(path.join(tempDir, req.file.filename));
-        }
-
-        return res.status(200).send({ success: true });
-      } catch (error) {
-        res.status(500).send({ success: false });
-      }
-    }
-  );
-
-  app.post("/ack", async (req: Request, res: Response) => {
-    try {
-      if (!req.body.blindedutxo) {
-        return res
-          .status(400)
-          .send({ success: false, error: "blindedutxo missing!" });
-      }
-      httpContext.set("blindedutxo", req.body.blindedutxo);
-      oldAPILogger.notice("", { req: req });
-      const c: Consignment | null = await ds.findOne({
-        blindedutxo: req.body.blindedutxo,
-      });
-
-      if (!c) {
-        return res
-          .status(404)
-          .send({ success: false, error: "No consignment found!" });
-      }
-      if (!!c.responded) {
-        return res
-          .status(403)
-          .send({ success: false, error: "Already responded!" });
-      }
-      await ds.update(
-        { blindedutxo: req.body.blindedutxo },
-        {
-          $set: {
-            ack: true,
-            nack: false,
-            responded: true,
-          },
-        },
-        { multi: false }
-      );
-
-      return res.status(200).send({ success: true });
-    } catch (error) {
-      oldAPILogger.error(error);
-      res.status(500).send({ success: false });
-    }
-  });
-
-  app.post("/nack", async (req: Request, res: Response) => {
-    try {
-      if (!req.body.blindedutxo) {
-        return res
-          .status(400)
-          .send({ success: false, error: "blindedutxo missing!" });
-      }
-      httpContext.set("blindedutxo", req.body.blindedutxo);
-      oldAPILogger.notice("", { req: req });
-      let c: Consignment | null = await ds.findOne({
-        blindedutxo: req.body.blindedutxo,
-      });
-      if (!c) {
-        return res.status(404).send({ success: false });
-      }
-      if (!!c.responded) {
-        return res
-          .status(403)
-          .send({ success: false, error: "Already responded!" });
-      }
-      await ds.update(
-        { blindedutxo: req.body.blindedutxo },
-        {
-          $set: {
-            nack: true,
-            ack: false,
-            responded: true,
-          },
-        },
-        { multi: false }
-      );
-      c = await ds.findOne({ blindedutxo: req.body.blindedutxo });
-
-      return res.status(200).send({ success: true });
-    } catch (error) {
-      res.status(500).send({ success: false });
-    }
-  });
-
-  app.get(
-    "/ack/:blindedutxo",
-    middleware,
-    async (req: Request, res: Response) => {
-      try {
-        if (!req.params.blindedutxo) {
-          return res
-            .status(400)
-            .send({ success: false, error: "blindedutxo missing!" });
-        }
-        const c: Consignment | null = await ds.findOne({
-          blindedutxo: req.params.blindedutxo,
-        });
-
-        if (!c) {
-          return res
-            .status(404)
-            .send({ success: false, error: "No consignment found!" });
-        }
-        const ack = !!c.ack;
-        const nack = !!c.nack;
-
-        return res.status(200).send({
-          success: true,
-          ack,
-          nack,
-        });
-      } catch (error) {
-        oldAPILogger.error(error);
-        res.status(500).send({ success: false });
-      }
-    }
-  );
-
-  app.get("/getinfo", middleware, async (_req: Request, res: Response) => {
-    return res.status(200).send({
-      version: APP_VERSION,
-      uptime: Math.trunc(process.uptime()),
-    });
-  });
 };

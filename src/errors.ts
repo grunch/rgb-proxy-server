@@ -24,9 +24,21 @@ export class InvalidAttachmentID extends JSONRPCErrorException {
   }
 }
 
-export class InvalidBlindedUTXO extends JSONRPCErrorException {
+export class InvalidRecipientID extends JSONRPCErrorException {
   constructor(data?: object) {
-    super("Invalid blinded UTXO", -202, data);
+    super("Invalid recipient ID", -202, data);
+  }
+}
+
+export class InvalidTxid extends JSONRPCErrorException {
+  constructor(data?: object) {
+    super("Invalid TXID", -203, data);
+  }
+}
+
+export class InvalidVout extends JSONRPCErrorException {
+  constructor(data?: object) {
+    super("Invalid vout", -204, data);
   }
 }
 
@@ -42,15 +54,21 @@ export class MissingAttachmentID extends JSONRPCErrorException {
   }
 }
 
-export class MissingBlindedUTXO extends JSONRPCErrorException {
+export class MissingRecipientID extends JSONRPCErrorException {
   constructor(data?: object) {
-    super("Missing blinded UTXO", -302, data);
+    super("Missing recipient ID", -302, data);
   }
 }
 
 export class MissingFile extends JSONRPCErrorException {
   constructor(data?: object) {
     super("Missing file", -303, data);
+  }
+}
+
+export class MissingTxid extends JSONRPCErrorException {
+  constructor(data?: object) {
+    super("Missing TXID", -303, data);
   }
 }
 
