@@ -1,5 +1,8 @@
 # RGB proxy server
 
+## We are moving!
+This repository is now deprecated and will be archived soon. Please refer to the new repository at [https://github.com/RGB-Tools/rgb-proxy-server](https://github.com/RGB-Tools/rgb-proxy-server)
+
 ![workflow](https://user-images.githubusercontent.com/31323835/172648333-efd666c0-d8c3-48d8-b290-117c590c684c.png)
 
 RGB proxy server is intended to facilitate the relay of client-side data
