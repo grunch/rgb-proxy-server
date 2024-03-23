@@ -1,0 +1,300 @@
+
+{
+  "openrpc": "1.2.4",
+  "info": {
+    "version": "0.1.0",
+    "title": "openrpc spec for rgb-proxy-server"
+  },
+  "servers": [
+    {
+      "name": "localhost",
+      "url": "http://localhost:3000/json-rpc"
+    }
+  ],
+  "methods": [
+    {
+      "name": "server.info",
+      "summary": "get server info",
+      "description": "get server info",
+      "params": [],
+      "result": {
+        "name": "server.info response",
+        "schema": {
+          "$ref": "server.info.schema.json"
+        }
+      }
+    },
+    {
+      "name": "consignment.post",
+      "summary": "Upload consignment info",
+      "description": "In addition to json-rpc request, the media file needs to be attached under \"file\" name via multipart form",
+      "params": [
+        {
+          "name": "consignment.post request",
+          "schema": {
+            "$ref": "consignment.post.request.json"
+          }
+        }
+      ],
+      "result": {
+        "name": "consignment.post response",
+        "schema": {
+          "$ref": "consignment.post.schema.json"
+        }
+      },
+      "errors": [
+        {
+          "$ref": "#/components/errors/CANNOT_CHANGE_ACK"
+        },
+        {
+          "$ref": "#/components/errors/INVALID_BLINDED_UTXO"
+        },
+        {
+          "$ref": "#/components/errors/MISSING_BLINDED_UTXO"
+        },
+        {
+          "$ref": "#/components/errors/MISSING_FILE"
+        }
+      ]
+    },
+    {
+      "name": "consignment.get",
+      "summary": "get previously uploaded consignment",
+      "params": [
+        {
+          "name": "consignment.get request",
+          "schema": {
+            "$ref": "consignment.get.request.json"
+          }
+        }
+      ],
+      "result": {
+        "name": "consignment.get response",
+        "schema": {
+          "$ref": "consignment.get.schema.json"
+        }
+      },
+      "errors": [
+        {
+          "$ref": "#/components/errors/INVALID_BLINDED_UTXO"
+        },
+        {
+          "$ref": "#/components/errors/MISSING_BLINDED_UTXO"
+        },
+        {
+          "$ref": "#/components/errors/CONSIGNMENT_FILE_NOT_FOUND"
+        }
+      ]
+    },
+    {
+      "name": "media.post",
+      "summary": "Upload media file",
+      "description": "In addition to json-rpc request, the media file needs to be attached under \"file\" name via multipart form",
+      "params": [
+        {
+          "name": "media.post request",
+          "schema": {
+            "$ref": "media.post.request.json"
+          }
+        }
+      ],
+      "result": {
+        "name": "media.post response",
+        "schema": {
+          "$ref": "media.post.schema.json"
+        }
+      },
+      "errors": [
+        {
+          "$ref": "#/components/errors/CANNOT_CHANGE_FILES"
+        },
+        {
+          "$ref": "#/components/errors/INVALID_ATTACHMENT_ID"
+        },
+        {
+          "$ref": "#/components/errors/MISSING_ATTACHMENT_ID"
+        },
+        {
+          "$ref": "#/components/errors/MISSING_FILE"
+        }
+      ]
+    },
+    {
+      "name": "media.get",
+      "summary": "get media file in base64-encoded form",
+      "params": [
+        {
+          "name": "media.get request",
+          "schema": {
+            "$ref": "media.get.request.json"
+          }
+        }
+      ],
+      "result": {
+        "name": "media.get response",
+        "schema": {
+          "$ref": "media.get.schema.json"
+        }
+      },
+      "errors": [
+        {
+          "$ref": "#/components/errors/INVALID_ATTACHMENT_ID"
+        },
+        {
+          "$ref": "#/components/errors/MISSING_ATTACHMENT_ID"
+        },
+        {
+          "$ref": "#/components/errors/MEDIA_FILE_NOT_FOUND"
+        }
+      ]
+    },
+    {
+      "name": "ack.post",
+      "summary": "Tell the server if specific consignment is accepted by the client (or not)",
+      "params": [
+        {
+          "name": "ack.post request",
+          "schema": {
+            "$ref": "ack.post.request.json"
+          }
+        }
+      ],
+      "result": {
+        "name": "ack.post response",
+        "schema": {
+          "$ref": "ack.post.schema.json"
+        }
+      },
+      "errors": [
+        {
+          "$ref": "#/components/errors/CANNOT_CHANGE_ACK"
+        },
+        {
+          "$ref": "#/components/errors/INVALID_ACK"
+        },
+        {
+          "$ref": "#/components/errors/INVALID_BLINDED_UTXO"
+        },
+        {
+          "$ref": "#/components/errors/MISSING_ACK"
+        },
+        {
+          "$ref": "#/components/errors/MISSING_BLINDED_UTXO"
+        },
+        {
+          "$ref": "#/components/errors/CONSIGNMENT_FILE_NOT_FOUND"
+        }
+      ]
+    },
+    {
+      "name": "ack.get",
+      "summary": "Check if the counterparty accepted the consignment or not",
+      "params": [
+        {
+          "name": "ack.get request",
+          "schema": {
+            "$ref": "ack.get.request.json"
+          }
+        }
+      ],
+      "result": {
+        "name": "ack.get response",
+        "schema": {
+          "$ref": "ack.get.schema.json"
+        }
+      },
+      "errors": [
+        {
+          "$ref": "#/components/errors/INVALID_BLINDED_UTXO"
+        },
+        {
+          "$ref": "#/components/errors/MISSING_BLINDED_UTXO"
+        },
+        {
+          "$ref": "#/components/errors/CONSIGNMENT_FILE_NOT_FOUND"
+        }
+      ]
+    }
+  ],
+  "components": {
+    "errors": {
+      "CANNOT_CHANGE_ACK": {
+        "code": -100,
+        "message": "Cannot change ACK",
+        "data": {
+          "type": "object"
+        }
+      },
+      "CANNOT_CHANGE_FILES": {
+        "code": -101,
+        "message": "Cannot change uploaded files",
+        "data": {
+          "type": "object"
+        }
+      },
+      "INVALID_ACK": {
+        "code": -200,
+        "message": "Invalid ACK",
+        "data": {
+          "type": "object"
+        }
+      },
+      "INVALID_ATTACHMENT_ID": {
+        "code": -201,
+        "message": "Invalid ACK",
+        "data": {
+          "type": "object"
+        }
+      },
+      "INVALID_BLINDED_UTXO": {
+        "code": -202,
+        "message": "Invalid blinded utxo",
+        "data": {
+          "type": "object"
+        }
+      },
+      "MISSING_ACK": {
+        "code": -300,
+        "message": "Missing ACK",
+        "data": {
+          "type": "object"
+        }
+      },
+      "MISSING_ATTACHMENT_ID": {
+        "code": -301,
+        "message": "Missing attachment id",
+        "data": {
+          "type": "object"
+        }
+      },
+      "MISSING_BLINDED_UTXO": {
+        "code": -302,
+        "message": "Missing blinded utxo",
+        "data": {
+          "type": "object"
+        }
+      },
+      "MISSING_FILE": {
+        "code": -303,
+        "message": "Missing file",
+        "data": {
+          "type": "object"
+        }
+      },
+      "CONSIGNMENT_FILE_NOT_FOUND": {
+        "code": -400,
+        "message": "Consignment file not found",
+        "data": {
+          "type": "object"
+        }
+      },
+      "MEDIA_FILE_NOT_FOUND": {
+        "code": -401,
+        "message": "Media file not found",
+        "data": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "result"
+  ],
+  "properties": {
+    "result": {
+      "type": "boolean",
+      "description": "`true` when first successful upload. `false` when the same request has been made before."
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+  ],
+  "properties": {
+    "result": {
+      "type": "boolean",
+      "description": "`true` when counterparty ACKed before, `false` if they NACKed, `null` if they haven't given any response yet."
+    }
+  }
+}

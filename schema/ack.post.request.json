@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "blinded_utxo",
+    "ack"
+  ],
+  "properties": {
+    "blinded_utxo": {
+      "type": "string",
+      "description": "The blinded UTXO for which we want to ACK or nACK its associated consignment file"
+    },
+    "ack": {
+      "type": "boolean",
+      "description": "Whether the consignment is accepted (`true`) or rejected (`false`)"
+    }
+  }
+}
